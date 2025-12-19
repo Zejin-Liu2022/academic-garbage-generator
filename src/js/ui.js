@@ -38,6 +38,9 @@ function closeNavSidebar() {
 function openSettings() {
     const sidebar = document.getElementById('settingsSidebar');
     const overlay = document.getElementById('settingsOverlay');
+    const chatButton = document.getElementById('chatButton');
+    const chatWindow = document.getElementById('chatWindow');
+    const chatGuide = document.getElementById('chatGuide');
     
     if (typeof PromptManager !== 'undefined' && PromptManager.updateUI) {
         PromptManager.updateUI();
@@ -46,6 +49,17 @@ function openSettings() {
     // 渲染模板列表
     if (typeof renderTemplateList === 'function') {
         renderTemplateList();
+    }
+
+    // 先调整聊天按钮位置,避免被侧边栏遮挡(在动画开始前)
+    if (chatButton) {
+        chatButton.style.right = '21rem'; // 设置栏打开时的位置
+    }
+    if (chatWindow) {
+        chatWindow.style.right = '21rem';
+    }
+    if (chatGuide) {
+        chatGuide.style.right = '21rem';
     }
 
     sidebar.classList.add('shadow-2xl');
@@ -59,6 +73,9 @@ function openSettings() {
 function closeSettings() {
     const sidebar = document.getElementById('settingsSidebar');
     const overlay = document.getElementById('settingsOverlay');
+    const chatButton = document.getElementById('chatButton');
+    const chatWindow = document.getElementById('chatWindow');
+    const chatGuide = document.getElementById('chatGuide');
     
     sidebar.classList.add('translate-x-full');
     overlay.classList.add('opacity-0');
@@ -66,6 +83,17 @@ function closeSettings() {
     setTimeout(() => {
         overlay.classList.add('hidden');
         sidebar.classList.remove('shadow-2xl');
+        
+        // 恢复聊天按钮原始位置(参考文献栏左侧)
+        if (chatButton) {
+            chatButton.style.right = '21rem';
+        }
+        if (chatWindow) {
+            chatWindow.style.right = '21rem';
+        }
+        if (chatGuide) {
+            chatGuide.style.right = '21rem';
+        }
     }, 300);
 }
 

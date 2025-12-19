@@ -232,26 +232,3 @@ document.addEventListener('DOMContentLoaded', () => {
         PromptManager.initUI();
     }
 });
-
-// 点击聊天窗口外部时关闭
-document.addEventListener('DOMContentLoaded', () => {
-    document.addEventListener('click', (event) => {
-        const chatWindow = document.getElementById('chatWindow');
-        if (!chatWindow || chatWindow.classList.contains('hidden')) return;
-
-        const target = event.target;
-        if (chatWindow.contains(target)) return;
-
-        const chatButtons = document.querySelectorAll('button[onclick="toggleChatWindow()"]');
-        for (const btn of chatButtons) {
-            if (btn.contains(target)) return;
-        }
-
-        const chatGuide = document.getElementById('chatGuide');
-        if (chatGuide && chatGuide.contains(target)) return;
-
-        if (typeof closeChatWindow === 'function') {
-            closeChatWindow();
-        }
-    });
-});

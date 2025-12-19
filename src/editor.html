@@ -374,7 +374,7 @@
         </main>
 
         <!-- 右侧：参考文献与资源 (对应文档 外部系统集成) -->
-        <aside class="w-64 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col transition-colors duration-200">
+        <aside class="w-64 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col transition-colors duration-200 relative z-10">
             <div class="p-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 font-bold text-slate-700 dark:text-slate-200 text-sm">
                 <i class="fas fa-book mr-2"></i>推荐参考文献
             </div>
@@ -603,12 +603,12 @@
     </div>
 
     <!-- 悬浮聊天按钮 -->
-    <button onclick="toggleChatWindow()" class="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center text-2xl transition-transform hover:scale-110 z-50" title="询问 AI">
+    <button id="chatButton" onclick="toggleChatWindow()" class="fixed bottom-8 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center text-2xl transition-all hover:scale-110 z-[100]" style="right: 21rem;" title="询问 AI">
         <i class="fas fa-comments"></i>
     </button>
 
     <!-- AI对话引导弹窗 -->
-    <div id="chatGuide" class="fixed bottom-24 right-8 hidden opacity-0 scale-95 transition-all duration-300 z-50">
+    <div id="chatGuide" class="fixed bottom-24 hidden opacity-0 scale-95 transition-all duration-300 z-[100]" style="right: 21rem;">
         <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-4 rounded-lg shadow-2xl max-w-xs relative animate-bounce">
             <button onclick="hideChatGuide()" class="absolute top-2 right-2 text-white/80 hover:text-white transition-colors">
                 <i class="fas fa-times text-sm"></i>
@@ -630,7 +630,7 @@
     </div>
 
     <!-- 聊天窗口 -->
-    <div id="chatWindow" class="fixed bottom-24 right-8 w-96 h-[500px] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col z-50 hidden transition-all duration-300 transform origin-bottom-right scale-95 opacity-0">
+    <div id="chatWindow" class="fixed bottom-24 w-96 h-[500px] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col z-[100] hidden transition-all duration-300 transform origin-bottom-right scale-95 opacity-0" style="right: 21rem;">
         <!-- 头部 -->
         <div class="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900 rounded-t-xl">
             <div class="flex items-center gap-2">

@@ -265,32 +265,19 @@ async function generateContent() {
 }
 
 // 聊天窗口控制
-function openChatWindow() {
-    const win = document.getElementById('chatWindow');
-    if (!win || !win.classList.contains('hidden')) return;
-    win.classList.remove('hidden');
-    setTimeout(() => {
-        win.classList.remove('scale-95', 'opacity-0');
-    }, 10);
-    const input = document.getElementById('chatInput');
-    if (input) input.focus();
-}
-
-function closeChatWindow() {
-    const win = document.getElementById('chatWindow');
-    if (!win || win.classList.contains('hidden')) return;
-    win.classList.add('scale-95', 'opacity-0');
-    setTimeout(() => {
-        win.classList.add('hidden');
-    }, 300);
-}
-
 function toggleChatWindow() {
     const win = document.getElementById('chatWindow');
-    if (win && win.classList.contains('hidden')) {
-        openChatWindow();
+    if (win.classList.contains('hidden')) {
+        win.classList.remove('hidden');
+        setTimeout(() => {
+            win.classList.remove('scale-95', 'opacity-0');
+        }, 10);
+        document.getElementById('chatInput').focus();
     } else {
-        closeChatWindow();
+        win.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            win.classList.add('hidden');
+        }, 300);
     }
 }
 
