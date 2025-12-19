@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>写作中 - 写作 AI 助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/theme.js"></script>
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://unpkg.com/html-docx-js/dist/html-docx.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 模拟Word的页面样式 */
+        .paper-page {
+            position: relative; /* 关键：确保子元素 offsetTop 相对于页面计算 */
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            font-family: "Times New Roman", "SimSun", serif;
+            line-height: 1.5;
+            color: #000;
+        }
+        /* 加载动画 */
+        .typing-cursor::after {
+            content: '|';
+            animation: blink 1s step-start infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* 参考文献样式优化 */
+        .references {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .references h3 {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            text-indent: 0 !important;
+        }
+        .references p, .references li {
+            text-indent: 0 !important; /* 强制取消首行缩进 */
+            margin-bottom: 8px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #334155;
+            text-align: left;
+        }
+        .references ul, .references ol {
+            padding-left: 0;
+            list-style: none;
+        }
+
+        /* 论文正文格式优化 - 遵循国标排版 */
+        .paper-page p {
+            text-indent: 2em; /* 首行缩进 */
+            text-align: justify; /* 两端对齐 */
+            margin-bottom: 1em; /* 段落间距 */
+            font-size: 12pt; /* 小四号字 */
+        }
+        
+        /* 标题样式 */
+        .paper-page h1 {
+            text-align: center;
+            font-size: 22pt; /* 二号字 */
+            font-weight: bold;
+            margin-bottom: 24px;
+            font-family: "SimHei", "STHeiti", sans-serif; /* 标题通常用黑体 */
+            text-indent: 0 !important;
+        }
+        .paper-page h2 {
+            font-size: 16pt; /* 三号字 */
+            font-weight: bold;
+            margin-top: 1.5em;
+            margin-bottom: 0.8em;
+            font-family: "SimHei", "STHeiti", sans-serif;
+            text-indent: 0 !important;
+        }
+        .paper-page h3 {
+            font-size: 14pt; /* 四号字 */
+            font-weight: bold;
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            font-family: "SimHei", "STHeiti", sans-serif;
+            text-indent: 0 !important;
+        }
+        .paper-page h4 {
+            font-size: 12pt; /* 小四号加粗 */
+            font-weight: bold;
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            text-indent: 0 !important;
+        }
+
+        /* 摘要与关键词 */
+        .paper-page .abstract, .paper-page .keywords {
+            font-size: 10.5pt; /* 五号字 */
+            margin-bottom: 1em;
+            padding: 0 2em; /* 左右缩进，使摘要比正文窄 */
+            text-indent: 0; /* 摘要整体不缩进，内部文字可能缩进 */
+        }
+        .paper-page .abstract strong, .paper-page .keywords strong {
+            font-family: "SimHei", "STHeiti", sans-serif;
+        }
+
+        /* 参考文献特殊处理 */
+        .references h4 {
+            text-align: center; /* 参考文献标题居中 */
+            margin-top: 2em;
+            border-top: 1px solid #000; /* 传统分割线 */
+            padding-top: 1em;
+        }
+
+        /* 修复列表样式被 Tailwind 重置的问题 */
+        .paper-page ul {
+            list-style-type: disc;
+            padding-left: 2em;
+            margin-bottom: 1em;
+        }
+        .paper-page ol {
+            list-style-type: decimal;
+            padding-left: 2em;
+            margin-bottom: 1em;
+        }
+        .paper-page li {
+            text-indent: 0 !important; /* 列表项取消首行缩进 */
+            margin-bottom: 0.5em;
+        }
+
+        /* 聊天消息动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 h-screen flex flex-col overflow-hidden transition-colors duration-200">
+
+    <!-- 工具栏 -->
+    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 h-16 flex items-center justify-between px-4 z-20 shadow-sm transition-colors duration-200">
+        <div class="flex items-center gap-4">
+            <button onclick="openNavSidebar()" class="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                <i class="fas fa-bars text-lg"></i>
+            </button>
+            <input id="headerTitle" type="text" value="未命名文档" 
+                   class="font-bold text-slate-700 dark:text-slate-200 border-none focus:ring-0 text-lg bg-transparent hover:bg-slate-50 dark:hover:bg-slate-700 rounded px-2 truncate transition-all duration-200"
+                   style="max-width: 400px; min-width: 150px;">
+            <span id="saveStatus" class="text-xs text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">已保存</span>
+            
+            <!-- 字数统计 -->
+            <div id="docStats" class="hidden md:flex items-center gap-3 ml-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 px-2 py-1 rounded border border-slate-100 dark:border-slate-700">
+                <span title="总字数"><i class="fas fa-font mr-1.5 text-slate-400"></i><span id="wordCount" class="font-medium">0</span> 字</span>
+                <div class="w-px h-3 bg-slate-300 dark:bg-slate-600"></div>
+                <span title="段落数"><i class="fas fa-paragraph mr-1.5 text-slate-400"></i><span id="paraCount" class="font-medium">0</span> 段</span>
+            </div>
+        </div>
+
+        <!-- 对应文档需求：导出格式 -->
+        <div class="flex items-center gap-3">
+            <button onclick="undoOperation()" class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded" title="撤销上一步操作">
+                <i class="fas fa-undo text-slate-500 dark:text-slate-400"></i> 撤销
+            </button>
+            <button onclick="copyFullText()" class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded">
+                <i class="fas fa-copy text-slate-600 dark:text-slate-400"></i> 复制全文
+            </button>
+            <button onclick="exportToWord()" class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded">
+                <i class="fas fa-file-word text-blue-600 dark:text-blue-400"></i> 导出 Word
+            </button>
+            <button onclick="exportToPDF()" class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded">
+                <i class="fas fa-file-pdf text-red-600 dark:text-red-400"></i> 导出 PDF
+            </button>
+            
+            <div class="h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
+
+            <button onclick="openSettings()" class="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-2">
+                <i class="fas fa-cog text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- 左侧：AI 控制面板 (对应文档功能性需求) -->
+        <aside class="w-80 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col z-10 transition-colors duration-200">
+            
+            <!-- 文章大纲区域 -->
+            <div id="sidebarOutline" class="flex-1 flex flex-col min-h-0">
+                <div class="p-3 bg-slate-50 dark:bg-slate-900 font-bold text-slate-700 dark:text-slate-200 text-sm border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                    <span><i class="fas fa-list-ul mr-2 text-blue-500"></i>文章大纲</span>
+                    <button onclick="updateOutline()" class="text-slate-400 hover:text-blue-500 transition" title="刷新大纲">
+                        <i class="fas fa-sync-alt text-xs"></i>
+                    </button>
+                </div>
+                <div id="articleOutline" class="flex-1 overflow-y-auto p-4 space-y-1">
+                    <p class="text-xs text-slate-400 text-center mt-4">暂无大纲内容</p>
+                </div>
+            </div>
+
+            <!-- Resizer 1 -->
+            <div id="resizerSettings" class="h-1.5 bg-slate-100 dark:bg-slate-700 cursor-row-resize hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors z-20 flex-none"></div>
+
+            <div id="sidebarSettings" class="flex-none overflow-y-auto" style="height: auto; max-height: 60vh;">
+                <div class="p-4">
+                    <h3 class="font-bold text-slate-700 dark:text-slate-200 mb-4"><i class="fas fa-robot text-blue-500 mr-2"></i>写作设置</h3>
+                    
+                    <!-- 写作模式 -->
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">写作模式 (Req #5)</label>
+                        <select id="modeSelect" class="w-full border-slate-300 dark:border-slate-600 rounded-lg text-sm p-2 bg-slate-50 dark:bg-slate-700 dark:text-white border focus:border-blue-500 outline-none">
+                            <option value="outline">思路引导 (生成提纲)</option>
+                            <option value="write" selected>快速成文 (生成内容)</option>
+                            <option value="polish">内容润色 (修改扩写)</option>
+                        </select>
+                    </div>
+
+                    <!-- 引用格式 -->
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">引用规范 (Req #3)</label>
+                        <select id="citationSelect" class="w-full border-slate-300 dark:border-slate-600 rounded-lg text-sm p-2 bg-slate-50 dark:bg-slate-700 dark:text-white border focus:border-blue-500 outline-none">
+                            <option value="GB/T 7714">GB/T 7714 (中国标准)</option>
+                            <option value="APA 7th">APA 7th (心理/教育)</option>
+                            <option value="MLA 9th">MLA 9th (文学/艺术)</option>
+                        </select>
+                    </div>
+
+                    <!-- 风格与字数 -->
+                    <div class="grid grid-cols-2 gap-2 mb-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">风格</label>
+                            <select id="styleSelect" class="w-full border-slate-300 dark:border-slate-600 rounded-lg text-sm p-2 bg-slate-50 dark:bg-slate-700 dark:text-white border focus:border-blue-500 outline-none">
+                                <option value="学术严谨">学术严谨</option>
+                                <option value="通俗易懂">通俗易懂</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">字数 (Req #2)</label>
+                            <input id="wordCountInput" type="number" placeholder="2000" class="w-full border-slate-300 dark:border-slate-600 rounded-lg text-sm p-2 bg-slate-50 dark:bg-slate-700 dark:text-white border focus:border-blue-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resizer 2 -->
+            <div id="resizerInput" class="h-1.5 bg-slate-100 dark:bg-slate-700 cursor-row-resize hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors z-20 flex-none"></div>
+
+            <!-- 输入提示区 -->
+            <div id="sidebarInput" class="flex-none h-80 flex flex-col bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
+                <div class="p-4 flex-1 flex flex-col">
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">输入主题或指令</label>
+                    <textarea id="promptInput" class="flex-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg p-3 text-sm dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none mb-3" placeholder="例如：请帮我写一篇关于‘生成式AI在教育领域应用’的论文提纲，包含3个主要章节..."></textarea>
+                    
+                    <!-- 模拟查重预警 -->
+                    <div class="flex items-center gap-2 mb-3 text-xs text-orange-600 bg-orange-50 p-2 rounded border border-orange-100">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>注意：生成内容请务必人工核对事实。</span>
+                    </div>
+
+                    <button onclick="generateContent()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg shadow-lg transition flex items-center justify-center gap-2">
+                        <i class="fas fa-magic"></i> 开始生成
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 中间：文档编辑预览区 -->
+        <main class="flex-1 flex flex-col bg-slate-100 dark:bg-slate-900 transition-colors duration-200 relative">
+            <!-- 格式工具栏 -->
+            <div class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-2 flex items-center justify-center gap-1 shadow-sm z-10 sticky top-0">
+                <!-- 字体样式 -->
+                <div class="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+                    <button onclick="formatDoc('bold')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition" title="加粗">
+                        <i class="fas fa-bold"></i>
+                    </button>
+                    <button onclick="formatDoc('italic')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition" title="斜体">
+                        <i class="fas fa-italic"></i>
+                    </button>
+                    <button onclick="formatDoc('underline')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition" title="下划线">
+                        <i class="fas fa-underline"></i>
+                    </button>
+                    <button onclick="formatDoc('strikeThrough')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition" title="删除线">
+                        <i class="fas fa-strikethrough"></i>
+                    </button>
+                </div>
+
+                <div class="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-2"></div>
+
+                <!-- 字号 -->
+                <div class="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+                    <button onclick="formatDoc('fontSize', '3')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition text-sm" title="正常">
+                        <i class="fas fa-font"></i>
+                    </button>
+                    <button onclick="formatDoc('fontSize', '5')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition text-lg" title="大号">
+                        <i class="fas fa-font"></i>
+                    </button>
+                </div>
+
+                <div class="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-2"></div>
+
+                <!-- 对齐方式 -->
+                <div class="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+                    <button onclick="formatDoc('justifyLeft')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition" title="左对齐">
+                        <i class="fas fa-align-left"></i>
+                    </button>
+                    <button onclick="formatDoc('justifyCenter')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition" title="居中">
+                        <i class="fas fa-align-center"></i>
+                    </button>
+                    <button onclick="formatDoc('justifyRight')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition" title="右对齐">
+                        <i class="fas fa-align-right"></i>
+                    </button>
+                    <button onclick="formatDoc('justifyFull')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition" title="两端对齐">
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+
+                <div class="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-2"></div>
+
+                <!-- 列表 -->
+                <div class="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+                    <button onclick="formatDoc('insertUnorderedList')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition" title="无序列表">
+                        <i class="fas fa-list-ul"></i>
+                    </button>
+                    <button onclick="formatDoc('insertOrderedList')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition" title="有序列表">
+                        <i class="fas fa-list-ol"></i>
+                    </button>
+                </div>
+                
+                <div class="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-2"></div>
+
+                <!-- 缩进 -->
+                <div class="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+                    <button onclick="formatDoc('outdent')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition" title="减少缩进">
+                        <i class="fas fa-outdent"></i>
+                    </button>
+                    <button onclick="formatDoc('indent')" class="p-2 rounded hover:bg-white dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition" title="增加缩进">
+                        <i class="fas fa-indent"></i>
+                    </button>
+                </div>
+
+                <div class="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-2"></div>
+
+                <!-- 缩放控制 -->
+                <div class="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-1 gap-2 px-3">
+                    <i class="fas fa-search-minus text-slate-400 text-xs"></i>
+                    <input type="range" id="zoomSlider" min="60" max="500" value="100" step="10" class="w-24 h-1 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-blue-600" oninput="updateZoom(this.value)">
+                    <i class="fas fa-search-plus text-slate-400 text-xs"></i>
+                    <div class="flex items-center border-l border-slate-300 dark:border-slate-600 pl-2 ml-1">
+                        <input type="number" id="zoomInput" min="60" max="500" value="100" class="w-12 bg-transparent text-xs text-center font-medium text-slate-600 dark:text-slate-300 outline-none" onchange="updateZoom(this.value)">
+                        <span class="text-xs text-slate-400">%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-8 flex justify-center">
+                <div id="pages-container" class="flex flex-col items-center gap-8 pb-8 w-full">
+                <div id="documentEditor" class="paper-page content-editable outline-none" contenteditable="true">
+                    <h1 style="text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 24px;">此处将生成论文标题</h1>
+                    
+                    <p class="text-slate-400 italic text-center" id="placeholder-text">
+                        在左侧输入主题并点击“开始生成”，AI 将为您辅助写作...<br>
+                        支持自动排版和参考文献插入。
+                    </p>
+                    
+                    <div id="generated-content" class="text-justify"></div>
+                </div>
+            </div>
+            </div>
+        </main>
+
+        <!-- 右侧：参考文献与资源 (对应文档 外部系统集成) -->
+        <aside class="w-64 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col transition-colors duration-200">
+            <div class="p-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 font-bold text-slate-700 dark:text-slate-200 text-sm">
+                <i class="fas fa-book mr-2"></i>推荐参考文献
+            </div>
+            <div id="sidebarReferences" class="flex-1 p-4 overflow-y-auto space-y-4">
+                <p id="no-ref-hint" class="text-xs text-slate-400 text-center mt-4">暂无可用文献</p>
+            </div>
+            
+            <!-- 格式检查区域 (固定在底部) -->
+            <div class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                <div class="text-xs text-slate-400 mb-2 uppercase font-bold">格式检查</div>
+                <div id="headingCheckStatus" class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <i class="fas fa-circle-notch fa-spin"></i> 正在检查标题层级...
+                </div>
+            </div>
+        </aside>
+    </div>
+    
+    <!-- 导航侧边栏 (左侧) -->
+    <div id="navOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden transition-opacity duration-300 opacity-0" onclick="closeNavSidebar()"></div>
+    <div id="navSidebar" class="fixed top-0 left-0 w-72 h-full bg-white dark:bg-slate-800 shadow-2xl z-50 transform -translate-x-full transition-transform duration-300 flex flex-col">
+        <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900">
+            <div class="flex items-center gap-2 font-bold text-lg text-slate-800 dark:text-white">
+                <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center">
+                    <i class="fas fa-pen-nib text-sm"></i>
+                </div>
+                <span>写作助手</span>
+            </div>
+            <button onclick="closeNavSidebar()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="p-4">
+            <button onclick="createNewArticle()" class="w-full bg-blue-600 text-white py-2.5 rounded-lg shadow hover:bg-blue-700 transition flex items-center justify-center gap-2 font-medium">
+                <i class="fas fa-plus"></i> 新建写作
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-4 pb-4">
+            <h3 class="text-xs font-bold text-slate-400 uppercase mb-3 px-2">最近文档</h3>
+            <div id="articleList" class="space-y-2">
+                <!-- 文章列表将通过 JS 动态生成 -->
+                <!-- 示例项 -->
+                <!--
+                <div class="group flex items-center justify-between p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-600">
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium text-slate-700 dark:text-slate-200 truncate">无标题文档</div>
+                        <div class="text-xs text-slate-400 mt-1">2023-12-15 14:30</div>
+                    </div>
+                    <button class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 p-1 transition-opacity">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置侧边栏 -->
+    <div id="settingsOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden transition-opacity duration-300 opacity-0" onclick="closeSettings()"></div>
+    <div id="settingsSidebar" class="fixed top-0 right-0 w-80 h-full bg-white dark:bg-slate-800 z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+        <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+            <h3 class="font-bold text-lg text-slate-800 dark:text-white">设置</h3>
+            <button onclick="closeSettings()" class="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-6 space-y-8">
+            <!-- API 设置 -->
+            <div>
+                <h4 class="font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                    <i class="fas fa-key text-blue-500"></i> API 配置
+                </h4>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">API Key</label>
+                        <div class="relative">
+                            <input type="password" id="apiKey" placeholder="sk-..." value="ak_1UT7vP9bn2CG9qH5cC3oG7104Bn1q" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg p-2 pr-10 text-sm bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            <button onclick="toggleApiKeyVisibility()" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                <i class="fas fa-eye" id="apiKeyIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Base URL</label>
+                        <input type="text" id="apiBaseUrl" placeholder="https://api.openai.com/v1" value="https://api.longcat.chat/openai" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Model Name</label>
+                        <input type="text" id="apiModel" placeholder="gpt-3.5-turbo" value="LongCat-Flash-Chat" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 界面设置 -->
+            <div>
+                <h4 class="font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                    <i class="fas fa-paint-brush text-purple-500"></i> 界面外观
+                </h4>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">主题模式</label>
+                    <select id="themeSelect" onchange="handleThemeChange(this.value)" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="system">跟随系统</option>
+                        <option value="light">浅色模式</option>
+                        <option value="dark">深色模式</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 自定义 Prompt 设置 (Req: User Custom Prompt) -->
+            <div>
+                <h4 class="font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                    <i class="fas fa-robot text-green-500"></i> AI 提示词设置
+                </h4>
+                <div class="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+                            当前模式：<span id="currentModeLabel" class="text-blue-600 dark:text-blue-400">快速成文</span>
+                        </label>
+                        <button onclick="resetCurrentPrompt()" class="text-xs text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1">
+                            <i class="fas fa-undo-alt"></i> 恢复默认
+                        </button>
+                    </div>
+                    <textarea id="modePromptInput" rows="6" class="w-full border-slate-300 dark:border-slate-600 rounded-lg text-xs p-3 bg-white dark:bg-slate-800 dark:text-white border focus:border-blue-500 outline-none resize-none leading-relaxed shadow-sm" placeholder="在此自定义当前模式的 AI 提示词..."></textarea>
+                    <p class="text-[10px] text-slate-400 mt-2 flex items-start gap-1">
+                        <i class="fas fa-info-circle mt-0.5"></i>
+                        <span>此提示词将替换该模式下的默认指令。修改自动保存。</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-center text-xs text-slate-400">
+            Student Writing AI Assistant v2.0
+        </div>
+    </div>
+
+    <!-- 悬浮聊天按钮 -->
+    <button onclick="toggleChatWindow()" class="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center text-2xl transition-transform hover:scale-110 z-50" title="询问 AI">
+        <i class="fas fa-comments"></i>
+    </button>
+
+    <!-- 聊天窗口 -->
+    <div id="chatWindow" class="fixed bottom-24 right-8 w-96 h-[500px] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col z-50 hidden transition-all duration-300 transform origin-bottom-right scale-95 opacity-0">
+        <!-- 头部 -->
+        <div class="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900 rounded-t-xl">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                <h3 class="font-bold text-slate-700 dark:text-white">AI 写作助手</h3>
+            </div>
+            <button onclick="toggleChatWindow()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- 消息列表 -->
+        <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-900/50">
+            <!-- 欢迎消息 -->
+            <div class="flex gap-3">
+                <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-robot text-blue-600 dark:text-blue-400 text-sm"></i>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-3 rounded-lg rounded-tl-none shadow-sm border border-slate-100 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 max-w-[85%]">
+                    你好！我是你的 AI 写作助手。我可以帮你解答关于这篇文章的问题，或者提供修改建议。
+                </div>
+            </div>
+        </div>
+
+        <!-- 输入框 -->
+        <div class="p-4 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 rounded-b-xl">
+            <div class="relative">
+                <textarea id="chatInput" rows="1" class="w-full pr-10 pl-4 py-3 bg-slate-100 dark:bg-slate-700 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none dark:text-white" placeholder="输入问题... (Enter 发送)" onkeydown="handleChatInput(event)"></textarea>
+                <button onclick="sendChatMessage()" class="absolute right-2 bottom-2 p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-600 rounded transition">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/app.js"></script>
+    <!-- 导出功能依赖库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- 使用 html-docx-js 的浏览器版本 -->
+    <script src="https://unpkg.com/html-docx-js/dist/html-docx.js"></script>
+</body>
+</html>
